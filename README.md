@@ -16,6 +16,7 @@ AR recebe na sua interface as Vendas do Programare
 ## File
 
  - sql/XXVEN_AR_INTERF_PROGRAMARE_PK.pks
- - sql/XXVEN_AR_INTERF_PROGRAMARE_PK..pkb
+ - sql/XXVEN_AR_INTERF_PROGRAMARE_PK.pkb
  - sql/XXVEN_AR_GET_NFF_PROG_TRG.trg
+ - sql/tb_prog_ebs_ped_venda_cab.tab.sql
  
