@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE BODY APPS.XXVEN_AR_INTERF_PROGRAMARE_PK AS
+CREATE OR REPLACE PACKAGE BODY  XXVEN_AR_INTERF_PROGRAMARE_PK AS
 -- +=================================================================+
 -- |                 ORACLE, RIO DE JANEIRO, BRASIL                  |
 -- |                       ALL RIGHTS RESERVED.                      |
@@ -300,6 +300,8 @@ CREATE OR REPLACE PACKAGE BODY APPS.XXVEN_AR_INTERF_PROGRAMARE_PK AS
    --
    l_typ_ra_interface_lines      l_tab_ra_interface_lines_all;
    l_ra_interface_lines_all      ra_interface_lines_all%ROWTYPE;
+
+   lv_decription                 fnd_lookup_values.description%TYPE;
    --
 
     -- CURSORES DO PROGRAMARE -- :
@@ -309,14 +311,10 @@ CREATE OR REPLACE PACKAGE BODY APPS.XXVEN_AR_INTERF_PROGRAMARE_PK AS
       WHERE 1 = 1
         AND tpepvc.status_integracao IS NULL 
         AND tpepvc.motivo_canc_devol IS NULL
-        -- NOT EXISTS abaixo IMPEDE processamento de pedidos com FRETE
-        -- AND NOT EXISTS (SELECT 1 FROM TB_PROG_EBS_PED_VENDA_LIN@intprd l where nvl(l.valor_frete,0) > 0 and l.ID_SEQ_PAI = tpepvc.id_sequencial and l.STATUS_INTEGRACAO is null)
-        --
         AND tpepvc.organizacao_venda IN (SELECT organization_code
                                            FROM org_organization_definitions
                                           WHERE operating_unit = FND_GLOBAL.ORG_ID)
         AND tpepvc.pedido_venda_programare = NVL(pc_pedido_programare, tpepvc.pedido_venda_programare)
-        --
    ORDER BY tpepvc.pedido_venda_programare;
     --
     CURSOR c_ped_line_prog(PC_PED_VENDA_PROG IN VARCHAR2
@@ -417,9 +415,7 @@ CREATE OR REPLACE PACKAGE BODY APPS.XXVEN_AR_INTERF_PROGRAMARE_PK AS
   BEGIN
      --
      BEGIN
-        -- mo_global.init('AR');
-        -- FND_GLOBAL.APPS_INITIALIZE(2253,51148, 222);   -- FND_GLOBAL.USER_ID  FND_GLOBAL.RESP_ID  FND_GLOBAL.RESP_APPL_ID
-        mo_global.set_policy_context('S', FND_GLOBAL.ORG_ID);  -- FND_GLOBAL.ORG_ID);   -- FND_GLOBAL.ORG_ID
+        mo_global.set_policy_context('S', FND_GLOBAL.ORG_ID);
      END;
      --
     P_DEBUG('  ');
@@ -791,20 +787,41 @@ CREATE OR REPLACE PACKAGE BODY APPS.XXVEN_AR_INTERF_PROGRAMARE_PK AS
           END;
         END IF;
         --
+        -- Inicio: ASChaves - 20200627 - Nota será emitida pelo Procfit e TaxWeb
         BEGIN
-           l_mens_erro := ' Erro ao selecionar informacoes sobre entidade legal/tipo de ordem (ra_cust_trx_types_all): ' || l_legal_entity || '/' || r_ped_header_prog.tipo_ordem;
-           SELECT cust_trx_type_id 
-             INTO l_cust_trx_type_id
-             FROM ra_cust_trx_types_all
-            WHERE NAME            = r_ped_header_prog.tipo_ordem
-              AND legal_entity_id = l_legal_entity;
+           l_mens_erro := ' Erro ao selecionar informacoes sobre tipo de ordem na Lookup (XXVEN_TIPO_TRANSA_PROG_EBS): ' || r_ped_header_prog.tipo_ordem;
+           SELECT description
+             INTO lv_decription
+             FROM fnd_lookup_values  flv
+           WHERE 1=1
+             AND flv.lookup_type = 'XXVEN_TIPO_TRANSA_PROG_EBS'
+             AND flv.language    = USERENV('LANG')
+             AND lookup_code     = r_ped_header_prog.tipo_ordem
+           ;
+           --
+           BEGIN
+             l_mens_erro := ' Erro ao selecionar informacoes sobre entidade legal/tipo de ordem (ra_cust_trx_types_all): ' || l_legal_entity || '/' || lv_decription;
+             SELECT cust_trx_type_id 
+               INTO l_cust_trx_type_id
+               FROM ra_cust_trx_types_all
+             WHERE 1=1
+               AND name            = lv_decription
+               AND legal_entity_id = l_legal_entity
+             ;
+           EXCEPTION
+             WHEN OTHERS THEN
+                l_mens_erro := l_mens_erro || '. ' || SUBSTR(SQLERRM,1,150);
+                l_tipo_oper := 'CAB';
+                RAISE e_process_proximo_pedido;
+           END;
+           --
         EXCEPTION
           WHEN OTHERS THEN
              l_mens_erro := l_mens_erro || '. ' || SUBSTR(SQLERRM,1,150);
              l_tipo_oper := 'CAB';
              RAISE e_process_proximo_pedido;
         END;
-        --
+        -- Inicio: ASChaves - 20200627 - Nota será emitida pelo Procfit e TaxWeb
         --
         l_exist_ped_venda_transp := FALSE;
         l_ra_interface_lines_all := NULL;
@@ -1664,5 +1681,4 @@ CREATE OR REPLACE PACKAGE BODY APPS.XXVEN_AR_INTERF_PROGRAMARE_PK AS
   END PROCESSA_ERRO_P;
 --
 END XXVEN_AR_INTERF_PROGRAMARE_PK;
-
 /

@@ -61,7 +61,7 @@ BEGIN
           :new.customer_trx_id
         , 'http://www.nfe.fazenda.gov.br/portal/principal.aspx'
         , 2
-        , :new.attribute11
+        , :new.interface_header_attribute11
         , SYSDATE
         , fnd_global.user_id
         , fnd_global.login_id
@@ -73,7 +73,7 @@ BEGIN
     SET    codigo_pedido_oracle = :new.customer_trx_id
 	     , status_integracao    = 40
   WHERE 1=1
-    AND chave_nfe = :new.attribute11
+    AND chave_nfe = :new.interface_header_attribute11
     AND nfe       = :new.trx_number
   ;
 END;
